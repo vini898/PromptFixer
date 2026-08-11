@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+{% block title %}Prompt Fixer{% endblock %}
+{% block content %}
+
+<!-- ═══ VIEW: OTIMIZAR ═══ -->
+<section id="view-optimize" class="view active">
+  <div class="view-header">
+    <div>
+      <h1>Otimizar prompt</h1>
+      <p class="subtitle">Escreva seu prompt, escolha o modo e veja a versão otimizada, com comparação de tokens, qualidade e diferenças.</p>
+    </div>
+  </div>
+
+  <div id="onboardingBanner" class="onboarding-banner hidden">
+    <span class="onboarding-icon">👋</span>
+    <div>
+      <strong>Falta configurar um provedor de IA</strong>
+      <p>Sem isso, o botão "Otimizar" não vai funcionar. Groq, Cerebras e OpenRouter têm planos gratuitos.</p>
+    </div>
+    <button type="button" id="onboardingGoBtn" class="btn-secondary">Configurar agora →</button>
+  </div>
+
+  <form id="optimizeForm">
+    <label for="prompt">
+      Seu prompt
+      <button type="button" id="micBtn" title="Ditar por voz" aria-label="Ditar prompt por voz">🎤</button>
+    </label>
+    <textarea id="prompt" rows="6" placeholder="Escreva aqui seu prompt em linguagem natural..." maxlength="6000" required></textarea>
+    <p class="field-hint" id="charCounter">0 / 6000 caracteres</p>
+    <div class="template-chips" id="quickTemplateChips"></div>
+
+    <label for="mode">Modo</label>
+    <select id="mode">
+      <option value="otimizar">Otimizar (mais claro e curto)</option>
+      <option value="enriquecimento">Enriquecer (tornar mais detalhado e completo)</option>
+      <option value="resumir">Resumir</option>
+      <option value="traduzir">Traduzir para inglês</option>
+      <option value="codigo">Formatar para assistente de código</option>
+    </select>
+
+    <div class="form-actions-row">
+      <button type="submit" id="submitBtn">🚀 Otimizar</button>
+      <button type="button" id="saveTemplateBtn" class="btn-ghost">💾 Salvar como template</button>
+    </div>
+    <p class="field-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para otimizar rapidamente</p>
+
+    <div id="saveTemplateForm" class="save-template-form hidden">
+      <input type="text" id="saveTemplateTitle" placeholder="Nome do template (ex: E-mail de cobrança)" maxlength="80" />
+      <div class="save-template-actions">
+        <button type="button" id="confirmSaveTemplateBtn" class="btn-secondary">Salvar</button>
+        <button type="button" id="cancelSaveTemplateBtn" class="btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  </form>
+
+  <div id="status" class="hidden"></div>
+
+  <div id="resultSkeleton" class="hidden">
+    <div class="skeleton-wrap">
+      <div class="skeleton skeleton-block w-40"></div>
+      <div class="skeleton skeleton-block w-80"></div>
+      <div class="skeleton skeleton-block w-60"></div>
+    </div>
+  </div>
+
+  <section id="result" class="hidden">
+    <h2>Resultado</h2>
+    <textarea id="output" rows="6" readonly></textarea>
+    <div class="result-actions">
+      <button id="copyBtn" type="button">📋 Copiar Prompt</button>
+      <button id="simulateBtn" type="button" class="btn-simulate">🧪 Simular Resposta da IA</button>
+      <button id="copyJsonBtn" type="button" class="btn-ghost">{ } Copiar resposta JSON</button>
+      <button id="copyCurlResultBtn" type="button" class="btn-ghost">🖥️ Copiar como cURL</button>
+    </div>
+
+    <div id="simulationContainer" class="simulation-container hidden">
+      <div class="simulation-header">
+        <span>🧪 Prévia da Resposta Simulada</span>
+        <span id="simulationStatus"></span>
+      </div>
+      <div id="simulationOutput" class="simulation-output">Clique em "Simular Resposta da IA" para gerar uma prévia.</div>
+    </div>
+
+    <div class="token-stats">
+      <div class="stat-card"><span class="stat-label">Tokens antes</span><span class="stat-value" id="tokensBefore">-</span></div>
+      <div class="stat-card"><span class="stat-label">Tokens depois</span><span class="stat-value" id="tokensAfter">-</span></div>
+      <div class="stat-card highlight"><span class="stat-label">Economia</span><span class="stat-value" id="tokensSaved">-</span></div>
+    </div>
+    <p class="field-hint" id="tokensSourceBadge"></p>
+    <p class="field-hint" id="providerBadge"></p>
+
+    <h3>Nota de qualidade do prompt</h3>
+    <div class="gauge-row">
+      <div>
+        <div class="gauge" id="gaugeBefore"><span id="gaugeBeforeValue">-</span></div>
+        <div class="gauge-caption">Antes</div>
+      </div>
+      <span class="gauge-arrow">→</span>
+      <div>
+        <div class="gauge" id="gaugeAfter"><span id="gaugeAfterValue">-</span></div>
+        <div class="gauge-caption">Depois</div>
+      </div>
+      <ul id="qualityReasons" class="reasons-list"></ul>
+    </div>
+
+    <button type="button" id="qualityReviewBtn" class="btn-ghost">🔬 Pedir segunda opinião da IA sobre este prompt</button>
+    <div id="qualityReviewResult" class="quality-review-card hidden"></div>
+
+    <h3>O que mudou (diff)</h3>
+    <div id="diffView" class="diff-view"></div>
+    <p class="field-hint hidden" id="chainTrail"></p>
+
+    <div class="chain-panel">
+      <h3>Encadear outro modo</h3>
+      <p class="subtitle" style="margin-bottom: 10px;">Pega o resultado atual e aplica mais um modo em cima dele — por exemplo, enriquecer e depois otimizar.</p>
+      <div class="chain-controls">
+        <select id="chainModeSelect"></select>
+        <button type="button" id="chainApplyBtn" class="btn-secondary">🔗 Aplicar</button>
+      </div>
+    </div>
+
+    <div id="aiRecommendation" class="ai-recommendation hidden">
+      <div class="ai-rec-header">
+        <span class="ai-rec-icon" id="aiIcon">🤖</span>
+        <div class="ai-rec-info">
+          <span class="ai-rec-badge">Melhor IA & Modelo Recomendados</span>
+          <div class="ai-rec-title-group">
+            <span class="ai-rec-name" id="aiName">ChatGPT</span>
+            <span class="ai-rec-company" id="aiCompany">(OpenAI)</span>
+          </div>
+          <span class="ai-rec-model" id="aiModel">Modelo: GPT-4o</span>
+        </div>
+      </div>
+      <div class="ai-rec-body">
+        <strong>Por que usar este modelo?</strong>
+        <p class="ai-rec-reason" id="aiReason"></p>
+      </div>
+      <button id="sendToAiBtn" type="button" class="btn-send-ai">
+        <span id="sendToAiLabel">🚀 Abrir no ChatGPT →</span>
+      </button>
+    </div>
+  </section>
+</section>
+
+<!-- ═══ VIEW: TEMPLATES ═══ -->
+<section id="view-templates" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Templates de prompt</h1>
+      <p class="subtitle">Pontos de partida prontos, ou os seus próprios, salvos a partir da tela de otimizar.</p>
+    </div>
+  </div>
+
+  <div class="templates-header-row">
+    <h3 style="margin: 0;">Meus templates</h3>
+    <div class="templates-header-actions">
+      <button id="exportTemplatesBtn" class="btn-ghost btn-icon" type="button" title="Exportar templates em JSON">⬇️ Exportar</button>
+      <button id="importTemplatesBtn" class="btn-ghost btn-icon" type="button" title="Importar templates de um JSON">⬆️ Importar</button>
+      <input type="file" id="importTemplatesInput" accept="application/json" class="hidden" />
+    </div>
+  </div>
+  <div class="templates-grid" id="customTemplatesGrid">
+    <div class="skeleton-wrap"><div class="skeleton skeleton-block w-40"></div><div class="skeleton skeleton-block w-80"></div></div>
+  </div>
+  <div id="customTemplatesEmpty" class="empty-state hidden">
+    <span class="empty-icon">💾</span>
+    <h3>Nenhum template salvo ainda</h3>
+    <p>Na tela "Otimizar", escreva um prompt e clique em "Salvar como template".</p>
+  </div>
+
+  <h3>Prontos</h3>
+  <div class="templates-grid" id="templatesGrid">
+    <div class="skeleton-wrap"><div class="skeleton skeleton-block w-40"></div><div class="skeleton skeleton-block w-80"></div></div>
+  </div>
+</section>
+
+<!-- ═══ VIEW: HISTÓRICO ═══ -->
+<section id="view-history" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Histórico de Otimizações</h1>
+      <p class="subtitle">Busque, filtre e reveja qualquer otimização já feita.</p>
+    </div>
+    <div class="view-header-actions">
+      <button id="exportCsvBtn" class="btn-secondary" type="button">⬇️ Exportar CSV</button>
+      <button id="emptyTrashBtn" class="btn-danger-ghost hidden" type="button">🗑️ Esvaziar lixeira</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="historySearch" class="search-input" placeholder="Buscar por texto no prompt..." />
+    <select id="historyModeFilter">
+      <option value="">Todos os modos</option>
+      <option value="otimizar">Otimizar</option>
+      <option value="enriquecimento">Enriquecer</option>
+      <option value="resumir">Resumir</option>
+      <option value="traduzir">Traduzir</option>
+      <option value="codigo">Código</option>
+    </select>
+    <label class="filter-pill" id="favoriteFilterPill">
+      <input type="checkbox" id="favoriteFilter" /> ⭐ Somente favoritos
+    </label>
+    <label class="filter-pill" id="trashFilterPill">
+      <input type="checkbox" id="trashFilter" /> 🗑️ Ver lixeira
+    </label>
+  </div>
+
+  <div id="bulkActionBar" class="bulk-action-bar hidden">
+    <span id="bulkCount">0 selecionados</span>
+    <div class="bulk-action-buttons" id="bulkActionButtons"></div>
+    <button type="button" id="bulkClearBtn" class="btn-ghost">Cancelar</button>
+  </div>
+
+  <div class="table-container">
+    <table id="historyTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="selectAllCheckbox" title="Selecionar todos" /></th>
+          <th>Data e Hora</th>
+          <th>Modo</th>
+          <th>Prompt Original</th>
+          <th>Prompt Otimizado</th>
+          <th>Tokens</th>
+          <th>Qualidade</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="8" class="text-center">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="historyEmpty" class="empty-state hidden">
+    <span class="empty-icon">🗂️</span>
+    <h3>Nenhum registro encontrado</h3>
+    <p>Otimize um prompt na aba "Otimizar" ou ajuste os filtros de busca.</p>
+  </div>
+  <div class="pagination" id="historyPagination"></div>
+</section>
+
+<!-- ═══ VIEW: DASHBOARD ═══ -->
+<section id="view-dashboard" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="subtitle">Métricas detalhadas do seu uso do Prompt Fixer.</p>
+    </div>
+    <button id="exportBtn" type="button">📄 Exportar relatório (PDF)</button>
+  </div>
+
+  <div class="dash-grid" id="dashGrid">
+    <div class="dash-card"><span class="dash-icon">📝</span><span class="dash-label">Total de prompts</span><span class="dash-value" id="dTotalRequests">-</span></div>
+    <div class="dash-card"><span class="dash-icon">💰</span><span class="dash-label">Tokens economizados</span><span class="dash-value" id="dTotalSaved">-</span></div>
+    <div class="dash-card accent"><span class="dash-icon">📉</span><span class="dash-label">Economia média</span><span class="dash-value" id="dAvgPct">-</span></div>
+    <div class="dash-card accent"><span class="dash-icon">💵</span><span class="dash-label">Economia estimada (USD)</span><span class="dash-value" id="dCostSaved">-</span></div>
+    <div class="dash-card"><span class="dash-icon">⭐</span><span class="dash-label">Ganho médio de qualidade</span><span class="dash-value" id="dAvgQuality">-</span></div>
+    <div class="dash-card"><span class="dash-icon">🏆</span><span class="dash-label">Maior economia (1 prompt)</span><span class="dash-value" id="dBestSaving">-</span></div>
+    <div class="dash-card"><span class="dash-icon">🎯</span><span class="dash-label">Modo mais usado</span><span class="dash-value" id="dTopMode">-</span></div>
+    <div class="dash-card"><span class="dash-icon">🌟</span><span class="dash-label">Prompts favoritados</span><span class="dash-value" id="dFavorites">-</span></div>
+  </div>
+
+  <p class="note">* A economia em USD é uma <strong>projeção ilustrativa</strong> (baseada em ~$0.03/1k tokens, faixa GPT-4-class).</p>
+
+  <section id="dAchievements" class="achievements hidden"></section>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Uso por modo</h3>
+      <canvas id="modeChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Qualidade (ganho médio/dia)</h3>
+      <canvas id="qualityChart"></canvas>
+    </div>
+    <div class="chart-card full">
+      <h3>Tokens economizados por dia</h3>
+      <canvas id="dailyChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ VIEW: COMPARAR ═══ -->
+<section id="view-compare" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Comparar modos</h1>
+      <p class="subtitle">Roda o mesmo prompt em dois modos diferentes e mostra os resultados lado a lado.</p>
+    </div>
+  </div>
+
+  <label for="comparePrompt">Prompt</label>
+  <textarea id="comparePrompt" rows="5" placeholder="Escreva o prompt que quer comparar..." maxlength="6000"></textarea>
+
+  <div class="compare-controls">
+    <div>
+      <label for="compareModeA">Modo A</label>
+      <select id="compareModeA">
+        <option value="otimizar">Otimizar</option>
+        <option value="enriquecimento">Enriquecer</option>
+        <option value="resumir">Resumir</option>
+        <option value="traduzir">Traduzir</option>
+        <option value="codigo">Código</option>
+      </select>
+    </div>
+    <div>
+      <label for="compareModeB">Modo B</label>
+      <select id="compareModeB">
+        <option value="enriquecimento">Enriquecer</option>
+        <option value="otimizar">Otimizar</option>
+        <option value="resumir">Resumir</option>
+        <option value="traduzir">Traduzir</option>
+        <option value="codigo">Código</option>
+      </select>
+    </div>
+    <button type="button" id="compareBtn">⚖️ Comparar</button>
+  </div>
+
+  <div id="compareSkeleton" class="hidden">
+    <div class="prompt-compare-grid">
+      <div class="skeleton-wrap"><div class="skeleton skeleton-block w-60"></div><div class="skeleton skeleton-block w-80"></div></div>
+      <div class="skeleton-wrap"><div class="skeleton skeleton-block w-60"></div><div class="skeleton skeleton-block w-80"></div></div>
+    </div>
+  </div>
+
+  <div id="compareResult" class="prompt-compare-grid hidden">
+    <div class="surface-card compare-card">
+      <span class="mode-badge" id="compareLabelA"></span>
+      <div class="prompt-text-display" id="compareOutputA"></div>
+      <div class="modal-stats-row">
+        <div class="stat-pill"><span>Tokens:</span> <strong id="compareTokensA">-</strong></div>
+        <div class="stat-pill"><span>Qualidade:</span> <strong id="compareQualityA">-</strong></div>
+      </div>
+      <button type="button" class="btn-secondary" id="compareUseABtn">Usar este →</button>
+    </div>
+    <div class="surface-card compare-card">
+      <span class="mode-badge" id="compareLabelB"></span>
+      <div class="prompt-text-display" id="compareOutputB"></div>
+      <div class="modal-stats-row">
+        <div class="stat-pill"><span>Tokens:</span> <strong id="compareTokensB">-</strong></div>
+        <div class="stat-pill"><span>Qualidade:</span> <strong id="compareQualityB">-</strong></div>
+      </div>
+      <button type="button" class="btn-secondary" id="compareUseBBtn">Usar este →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ VIEW: LOTE ═══ -->
+<section id="view-batch" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Otimização em lote</h1>
+      <p class="subtitle">Cole vários prompts (um por linha, até 20) e otimize todos de uma vez, no mesmo modo.</p>
+    </div>
+  </div>
+
+  <label for="batchPrompts">Prompts (um por linha)</label>
+  <textarea id="batchPrompts" rows="8" placeholder="Primeiro prompt aqui...&#10;Segundo prompt aqui...&#10;Terceiro prompt aqui..."></textarea>
+  <p class="field-hint" id="batchCounter">0 prompts</p>
+
+  <label for="batchMode">Modo</label>
+  <select id="batchMode">
+    <option value="otimizar">Otimizar</option>
+    <option value="enriquecimento">Enriquecer</option>
+    <option value="resumir">Resumir</option>
+    <option value="traduzir">Traduzir</option>
+    <option value="codigo">Código</option>
+  </select>
+
+  <button type="button" id="batchRunBtn">📦 Otimizar todos</button>
+
+  <div id="batchSkeleton" class="hidden">
+    <div class="skeleton-wrap"><div class="skeleton skeleton-block w-40"></div><div class="skeleton skeleton-block w-80"></div></div>
+  </div>
+
+  <div id="batchSummary" class="field-hint hidden"></div>
+  <div id="batchResults" class="batch-results"></div>
+</section>
+
+<!-- ═══ MODAL: PREENCHER TEMPLATE ═══ -->
+<div id="templateFillModal" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 560px;">
+    <header class="modal-header">
+      <h2 id="templateFillTitle">Preencher template</h2>
+      <button type="button" id="closeTemplateFillBtn" class="close-btn" aria-label="Fechar">✕</button>
+    </header>
+    <div class="modal-body" id="templateFillFields"></div>
+    <footer class="modal-footer">
+      <button type="button" id="applyTemplateFillBtn">Aplicar e ir para Otimizar →</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ═══ VIEW: CONFIGURAÇÕES ═══ -->
+<section id="view-settings" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Configurações</h1>
+      <p class="subtitle">Configure suas chaves de IA e a ordem de prioridade entre provedores — se um falhar ou não tiver chave, o app tenta o próximo automaticamente.</p>
+    </div>
+  </div>
+
+  <h3>Provedores de IA</h3>
+  <div id="providersList" class="providers-list">
+    <div class="skeleton-wrap"><div class="skeleton skeleton-block w-60"></div><div class="skeleton skeleton-block w-80"></div></div>
+  </div>
+
+  <h3>Ordem de prioridade</h3>
+  <p class="subtitle" style="margin-bottom: 12px;">O primeiro configurado da lista é tentado primeiro.</p>
+  <div id="providerOrderList" class="provider-order-list"></div>
+  <div class="form-actions-row">
+    <button type="button" id="saveOrderBtn" class="btn-secondary">💾 Salvar ordem</button>
+  </div>
+  <p class="field-hint" id="orderFeedback"></p>
+
+  <h3>Dados</h3>
+  <div class="surface-card">
+    <p class="subtitle">Backup completo do histórico e templates pessoais, num arquivo JSON só — útil pra levar entre máquinas.</p>
+    <div class="form-actions-row">
+      <button type="button" id="exportBackupBtn" class="btn-secondary">⬇️ Exportar backup completo</button>
+      <button type="button" id="importBackupBtn" class="btn-secondary">⬆️ Importar backup</button>
+      <input type="file" id="importBackupInput" accept="application/json" class="hidden" />
+    </div>
+    <p class="field-hint">Importar <strong>adiciona</strong> os itens do backup ao que você já tem — não substitui nada.</p>
+    <p class="field-hint" id="backupFeedback"></p>
+  </div>
+</section>
+
+<!-- ═══ VIEW: API ═══ -->
+<section id="view-api" class="view">
+  <div class="view-header">
+    <div>
+      <h1>Documentação da API</h1>
+      <p class="subtitle">Explore os endpoints interativos do backend FastAPI, ou use direto via cURL.</p>
+    </div>
+  </div>
+
+  <h3>Exemplo rápido</h3>
+  <div class="code-snippet"><button type="button" class="copy-snippet btn-icon" id="copyCurlBtn">Copiar</button>curl -X POST http://localhost:8000/api/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "explique o que e uma api rest", "mode": "otimizar"}'</div>
+
+  <div class="api-frame-container">
+    <iframe id="apiFrame" class="api-frame" title="API Docs"></iframe>
+  </div>
+</section>
+
+<!-- ═══ MODAL DE DETALHES (HISTÓRICO) ═══ -->
+<div id="historyModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <header class="modal-header">
+      <div>
+        <h2 id="modalTitle">Detalhes da Otimização</h2>
+        <span id="modalMeta" class="modal-meta"></span>
+      </div>
+      <button type="button" id="closeModalBtn" class="close-btn" aria-label="Fechar detalhes">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="prompt-compare-grid">
+        <div class="prompt-box"><label>Original</label><div id="modalOriginal" class="prompt-text-display"></div></div>
+        <div class="prompt-box"><label>Otimizado / Enriquecido</label><div id="modalOptimized" class="prompt-text-display highlight-box"></div></div>
+      </div>
+      <div class="modal-section"><h3>Diferenças (Diff)</h3><div id="modalDiff" class="diff-view"></div></div>
+      <div class="modal-stats-row">
+        <div class="stat-pill"><span>Tokens:</span> <strong id="modalTokens">-</strong></div>
+        <div class="stat-pill"><span>Qualidade:</span> <strong id="modalQuality">-</strong></div>
+      </div>
+      <div class="modal-section">
+        <label for="modalNoteInput">📝 Nota pessoal</label>
+        <textarea id="modalNoteInput" rows="2" maxlength="500" placeholder="Ex: usei esse no projeto X..."></textarea>
+        <button type="button" id="modalSaveNoteBtn" class="btn-ghost">💾 Salvar nota</button>
+      </div>
+    </div>
+    <footer class="modal-footer">
+      <button id="modalDeleteBtn" type="button" class="btn-danger-ghost">🗑️ Mover para lixeira</button>
+      <div class="modal-footer-actions">
+        <button id="modalCopyCurlBtn" type="button" class="btn-ghost">🖥️ cURL</button>
+        <button id="modalCopyBtn" type="button" class="btn-secondary">📋 Copiar Otimizado</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden">Prompt copiado!</div>
+
+<script src="/static/app.js"></script>
+{% endblock %}

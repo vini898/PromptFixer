@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prompt Fixer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ────────────────────────────────── -->
+  <header>
+    <div class="brand">
+      <span class="brand-icon">✦</span>
+      <span class="brand-name">Prompt<strong>AI</strong></span>
+    </div>
+    <div class="header-actions">
+      <button id="openWebAppBtn" class="btn-web" title="Abrir aplicação web completa">
+        <span>🌐</span> Web
+      </button>
+      <button id="settingsToggle" class="btn-icon" title="Configurações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Settings Panel ────────────────────────── -->
+  <section id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-inner">
+      <label for="backendUrl" class="field-label">URL do Backend</label>
+      <input type="text" id="backendUrl" class="field-input" placeholder="http://localhost:8000/api/optimize" />
+
+      <label class="toggle-label">
+        <input type="checkbox" id="widgetEnabled" checked class="toggle-checkbox" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Widget flutuante (Claude / ChatGPT / Gemini)</span>
+      </label>
+
+      <button id="saveSettings" class="btn-save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar configurações
+      </button>
+    </div>
+  </section>
+
+  <!-- ── Main ──────────────────────────────────── -->
+  <main>
+    <div class="form-group">
+      <label for="inputPrompt" class="field-label">
+        <span>Seu prompt</span>
+        <button type="button" id="micBtn" class="btn-mic" title="Ditar por voz">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </label>
+      <textarea id="inputPrompt" rows="5" placeholder="Escreva seu prompt aqui..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="modeSelect" class="field-label">Modo de otimização</label>
+      <select id="modeSelect">
+        <option value="otimizar">⚡ Otimizar — mais claro e objetivo</option>
+        <option value="enriquecimento">✨ Enriquecer — mais detalhado</option>
+        <option value="resumir">📋 Resumir</option>
+        <option value="traduzir">🌍 Traduzir para inglês</option>
+        <option value="codigo">💻 Formatar para código</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="templateSelect" class="field-label">📌 Usar um template</label>
+      <select id="templateSelect">
+        <option value="">Selecione um template salvo...</option>
+      </select>
+    </div>
+
+    <button id="optimizeBtn" class="btn-optimize">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Otimizar Prompt
+    </button>
+
+    <div id="status" class="status-bar hidden"></div>
+
+    <!-- Output -->
+    <div id="outputSection" class="output-section hidden">
+      <label for="outputPrompt" class="field-label">
+        <span>✓ Prompt otimizado</span>
+        <button id="copyBtn" class="btn-copy" title="Copiar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar
+        </button>
+      </label>
+      <textarea id="outputPrompt" rows="5" readonly placeholder="Resultado aparece aqui..."></textarea>
+
+      <!-- Stats -->
+      <div id="tokenStats" class="stats-row hidden">
+        <div class="stat-chip">
+          <span class="stat-chip-label">Tokens</span>
+          <span class="stat-chip-val" id="tokenStatText">—</span>
+        </div>
+        <div class="stat-chip highlight">
+          <span class="stat-chip-label">Economia</span>
+          <span class="stat-chip-val" id="savingStatText">—</span>
+        </div>
+      </div>
+
+      <div id="qualityStats" class="quality-row hidden">
+        <div class="quality-chip">
+          <span class="quality-label">Qualidade</span>
+          <div class="quality-values">
+            <span class="q-before" id="qBefore">—</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <span class="q-after" id="qAfter">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Recommendation -->
+    <div id="aiRecommendation" class="ai-card hidden">
+      <div class="ai-card-top">
+        <span id="aiIcon" class="ai-icon">🤖</span>
+        <div class="ai-info">
+          <span class="ai-badge">IA Recomendada</span>
+          <div class="ai-name-row">
+            <strong id="aiName">ChatGPT</strong>
+            <span id="aiCompany" class="ai-company"></span>
+          </div>
+          <span id="aiModel" class="ai-model-tag">GPT-4o</span>
+        </div>
+      </div>
+      <p id="aiReason" class="ai-reason"></p>
+      <button id="sendToAiBtn" type="button" class="btn-send-ai">
+        <span id="sendToAiLabel">🚀 Abrir na IA →</span>
+      </button>
+    </div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

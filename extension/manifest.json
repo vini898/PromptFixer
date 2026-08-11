@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Fixer",
+  "version": "0.3.0",
+  "description": "Reescreve seus prompts para ficarem mais claros, objetivos e economizarem tokens antes de enviar para uma IA — direto na página do Claude, ChatGPT ou Gemini.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:8000/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://chat.deepseek.com/*",
+        "https://*.deepseek.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

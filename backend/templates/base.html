@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Prompt Fixer{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    // Aplica o tema salvo antes de renderizar, para evitar "flash" de tema errado.
+    (function () {
+      var saved = localStorage.getItem("po-theme");
+      var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 4L4 12L8 20" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 4L20 12L16 20" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11 15L13 9" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>Prompt Fixer</strong>
+          <span>v2.0</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" role="navigation" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="optimize" aria-current="page"><span class="nav-icon" aria-hidden="true">⚡</span> Otimizar</button>
+        <button class="nav-item" data-view="templates"><span class="nav-icon" aria-hidden="true">🧩</span> Templates</button>
+        <button class="nav-item" data-view="compare"><span class="nav-icon" aria-hidden="true">⚖️</span> Comparar</button>
+        <button class="nav-item" data-view="batch"><span class="nav-icon" aria-hidden="true">📦</span> Lote</button>
+        <button class="nav-item" data-view="history"><span class="nav-icon" aria-hidden="true">📋</span> Histórico</button>
+        <button class="nav-item" data-view="dashboard"><span class="nav-icon" aria-hidden="true">📊</span> Dashboard</button>
+        <button class="nav-item" data-view="api"><span class="nav-icon" aria-hidden="true">🔗</span> API</button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon" aria-hidden="true">⚙️</span> Configurações</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="health-row">
+          <span class="health-dot" id="healthDot"></span>
+          <span id="healthLabel">Verificando backend…</span>
+        </div>
+        <label class="theme-toggle">
+          <span id="themeLabel">Modo escuro</span>
+          <span class="switch">
+            <input type="checkbox" id="themeSwitch" />
+            <span class="switch-track"></span>
+          </span>
+        </label>
+        <a class="docs-link" href="/docs" target="_blank">📄 <span class="link-label">API Docs</span></a>
+      </div>
+    </aside>
+
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>
